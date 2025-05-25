@@ -172,3 +172,21 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Simulation output
+data/logs/
+data/replays/
+*.gif
+*.mp4
+
+# Trained models and weights
+*.pt
+*.pth
+*.ckpt
+
+# Visualizations
+*.png
+*.svg
+*.pdf
+
+.idea/

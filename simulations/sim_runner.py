@@ -12,9 +12,9 @@ from envs.grid_map_env import (
 TILE_SIZE = 20
 MAP_WIDTH = 30
 MAP_HEIGHT = 30
-FPS = 60
+FPS = 5
 NUM_DRONES = 5
-
+ENTRY_POINTS = 2
 
 def run_simulation():
     pygame.init()
@@ -25,10 +25,14 @@ def run_simulation():
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Multi-Agent SLAM Simulation")
 
-    env = GridMapEnv(width=MAP_WIDTH, height=MAP_HEIGHT, randomize=True, num_entry_points=NUM_DRONES)
+    env = GridMapEnv(width=MAP_WIDTH, height=MAP_HEIGHT, randomize=True, num_entry_points=ENTRY_POINTS)
     drones = []
-    for i, (y, x) in enumerate(env.entry_points[:NUM_DRONES]):
-        d = Drone(drone_id=i, start_pos=(x, y), fov_radius=4, entry_time=0)
+    for i in range(NUM_DRONES):
+        # Cycle through entry points
+        y, x = env.entry_points[i % len(env.entry_points)]
+        entry_time = i * 2
+        d = Drone(drone_id=i, start_pos=(x, y), fov_radius=4, entry_time=entry_time)
+
         d.initialize_map(env.grid.shape)
         drones.append(d)
 

@@ -118,9 +118,6 @@ class GridMapEnv:
             return True  # Outside bounds
         return self.grid[y, x] in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}
 
-    def is_entry_point(self, x, y):
-        return self.grid[y, x] == ENTRY_POINT
-
     def get_tile(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:
             return self.grid[y, x]

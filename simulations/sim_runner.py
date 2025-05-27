@@ -12,10 +12,10 @@ from envs.grid_map_env import (
 TILE_SIZE = 20
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
-FPS = 3
-NUM_DRONES = 3
-ENTRY_POINTS = 2
-FOV = 0
+FPS = 120
+NUM_DRONES = 20
+ENTRY_POINTS = 1
+FOV = 1
 
 
 def run_simulation():
@@ -28,8 +28,10 @@ def run_simulation():
     pygame.display.set_caption("Multi-Agent SLAM Simulation")
 
     # env = GridMapEnv(width=MAP_WIDTH, height=MAP_HEIGHT, randomize=True, num_entry_points=ENTRY_POINTS)
-    # env = GridMapEnv(map_path="data/maps/house_map.txt")
-    env = GridMapEnv(map_path="data/maps/structured_house_map.txt")
+    env = GridMapEnv(map_path="data/maps/house_map.txt", width=32, height=32, randomize=False,
+                         num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
+    # env = GridMapEnv(map_path="data/maps/structured_house_map.txt", width=32, height=32, randomize=False,
+    #                  num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
 
     master = MasterController(env.drones, env)
 
@@ -66,10 +68,7 @@ def run_simulation():
                 pygame.draw.rect(screen, color, (x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1))
 
         # Observed map (right)
-        observed_map = np.full(env.grid.shape, -1, dtype=np.int8)
-        for drone in env.drones:
-            if drone.local_map is not None:
-                observed_map[drone.local_map != -1] = drone.local_map[drone.local_map != -1]
+        observed_map = master.global_map
 
         for y in range(env.height):
             for x in range(env.width):
@@ -90,16 +89,20 @@ def run_simulation():
         for drone in env.drones:
             if drone.active:
                 dx, dy = drone.get_position()
-                pygame.draw.circle(screen, (255, 255, 0), (dx * TILE_SIZE + TILE_SIZE // 2, dy * TILE_SIZE + TILE_SIZE // 2), 5)
-                pygame.draw.circle(screen, (0, 255, 0), (MAP_WIDTH * TILE_SIZE + 50 + dx * TILE_SIZE + TILE_SIZE // 2, dy * TILE_SIZE + TILE_SIZE // 2), 5)
+
+                # Left: yellow circle (on true map)
+                pygame.draw.circle(screen, (255, 255, 0),
+                                   (dx * TILE_SIZE + TILE_SIZE // 2, dy * TILE_SIZE + TILE_SIZE // 2), 5)
+
+                # Right: draw drone ID on observed map
+                drone_id_text = font.render(str(drone.id), True, (0, 0, 0))
+                screen.blit(drone_id_text, (MAP_WIDTH * TILE_SIZE + 50 + dx * TILE_SIZE + 5, dy * TILE_SIZE))
 
         # Progress bar
-        explorable_tiles = {FREE_SPACE, ENTRY_POINT, DOOR_CLOSED, DOOR_OPEN, WINDOW}
-        explorable_mask = np.isin(env.grid, list(explorable_tiles))
-        total_cells = np.count_nonzero(explorable_mask)
-        discovered_mask = (observed_map != -1) & explorable_mask
-        known_cells = np.count_nonzero(discovered_mask)
-        progress_ratio = min(known_cells / total_cells, 1.0) if total_cells else 0
+        # Count all real map cells except those that are -1 in the ground truth (if any)
+        total_cells = np.prod(env.grid.shape)
+        known_cells = np.count_nonzero(observed_map != -1)
+        progress_ratio = min(known_cells / total_cells, 1.0)
 
         if not completed and progress_ratio >= 1.0:
             completed = True

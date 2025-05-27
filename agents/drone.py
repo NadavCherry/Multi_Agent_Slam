@@ -17,7 +17,6 @@ class Drone:
         self.fov_radius = fov_radius
         self.entry_time = entry_time
         self.active = False
-
         self.local_map = None   # Will be initialized once we get map dimensions
         self.path_history = [start_pos]
         self.collided = False
@@ -44,23 +43,28 @@ class Drone:
             self.pos = (new_x, new_y)
             self.path_history.append(self.pos)
             self.collided = False
+            return self.sense(env)
 
     def sense(self, env):
-        """
-        Update local map using simple circular FOV around the drone
-        """
         if not self.active:
-            return
+            return []
 
         cx, cy = self.pos
+        new_discoveries = []
+
         for dy in range(-self.fov_radius, self.fov_radius + 1):
             for dx in range(-self.fov_radius, self.fov_radius + 1):
                 x = cx + dx
                 y = cy + dy
 
                 if 0 <= x < env.width and 0 <= y < env.height:
-                    if dx**2 + dy**2 <= self.fov_radius**2:
-                        self.local_map[y, x] = env.get_tile(x, y)
+                    if dx ** 2 + dy ** 2 <= self.fov_radius ** 2:
+                        tile_val = env.get_tile(x, y)
+                        if self.local_map[y, x] != tile_val:
+                            self.local_map[y, x] = tile_val
+                            new_discoveries.append((x, y, tile_val))
+
+        return new_discoveries
 
     def get_observed_map(self):
         return self.local_map

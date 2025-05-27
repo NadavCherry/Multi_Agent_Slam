@@ -13,9 +13,50 @@ TILE_SIZE = 20
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
 FPS = 120
-NUM_DRONES = 20
+NUM_DRONES = 30
 ENTRY_POINTS = 1
-FOV = 1
+FOV = 0
+
+
+def compute_reachable_mask(env, fov):
+    """
+    Perform BFS from entry points to mark all cells that are discoverable
+    considering FOV. Returns a boolean mask.
+    """
+    reachable = np.zeros_like(env.grid, dtype=bool)
+    visited = np.zeros_like(env.grid, dtype=bool)
+    queue = list(env.entry_points)
+
+    while queue:
+        y, x = queue.pop(0)
+        if visited[y, x]:
+            continue
+        visited[y, x] = True
+        reachable[y, x] = True
+
+        for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            ny, nx = y + dy, x + dx
+            if not (0 <= ny < env.height and 0 <= nx < env.width):
+                continue
+            if visited[ny, nx]:
+                continue
+            tile = env.grid[ny, nx]
+            if tile in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}:
+                continue
+            queue.append((ny, nx))
+
+    # Expand reachable mask by FOV
+    expanded = np.zeros_like(env.grid, dtype=bool)
+    for y in range(env.height):
+        for x in range(env.width):
+            if reachable[y, x]:
+                for dy in range(-fov, fov + 1):
+                    for dx in range(-fov, fov + 1):
+                        if dx**2 + dy**2 <= fov**2:
+                            ny, nx = y + dy, x + dx
+                            if 0 <= ny < env.height and 0 <= nx < env.width:
+                                expanded[ny, nx] = True
+    return expanded
 
 
 def run_simulation():
@@ -32,8 +73,10 @@ def run_simulation():
                          num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
     # env = GridMapEnv(map_path="data/maps/structured_house_map.txt", width=32, height=32, randomize=False,
     #                  num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
+    # Only count reachable areas
 
-    master = MasterController(env.drones, env)
+    reachable_mask = compute_reachable_mask(env, FOV)
+    master = MasterController(env.drones, env, reachable_mask)
 
     clock = pygame.time.Clock()
     start_time = time.time()
@@ -100,8 +143,10 @@ def run_simulation():
 
         # Progress bar
         # Count all real map cells except those that are -1 in the ground truth (if any)
-        total_cells = np.prod(env.grid.shape)
-        known_cells = np.count_nonzero(observed_map != -1)
+
+
+        known_cells = np.count_nonzero((observed_map != -1) & reachable_mask)
+        total_cells = np.count_nonzero(reachable_mask)
         progress_ratio = min(known_cells / total_cells, 1.0)
 
         if not completed and progress_ratio >= 1.0:

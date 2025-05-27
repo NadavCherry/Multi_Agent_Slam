@@ -5,11 +5,12 @@ DIRECTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'STAY']
 
 
 class MasterController:
-    def __init__(self, drones, env):
+    def __init__(self, drones, env, discoverable_mask):
         self.drones = drones
         self.env = env
         self.global_map = np.full((env.height, env.width), -1, dtype=np.int8)  # unknown
         self.frontiers = set()
+        self.discoverable_mask = discoverable_mask
 
     def step(self, current_time):
         """
@@ -42,7 +43,7 @@ class MasterController:
                 if not (0 <= nx < self.env.width and 0 <= ny < self.env.height):
                     continue
 
-                if self.global_map[ny, nx] == -1:
+                if self.global_map[ny, nx] == -1 and self.discoverable_mask[ny, nx]:
                     self.frontiers.add((nx, ny))
 
     def random_walk(self, drone):

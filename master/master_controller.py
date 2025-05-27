@@ -33,7 +33,6 @@ class MasterController:
 
                             # Update new frontiers based on all new observations
                             self._update_frontiers(new_info)
-        print(self.frontiers)
 
     def _update_frontiers(self, new_info):
         for x, y, val in new_info:

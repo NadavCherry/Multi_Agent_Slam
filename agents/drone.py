@@ -1,5 +1,5 @@
 import numpy as np
-from envs.grid_map_env import FREE_SPACE, WALL, DOOR_CLOSED, OUT_OF_BOUNDS
+import random
 
 DIRECTIONS = {
     'UP': (0, -1),

@@ -10,12 +10,13 @@ from envs.grid_map_env import (
 
 
 TILE_SIZE = 20
-MAP_WIDTH = 30
-MAP_HEIGHT = 30
-FPS = 1
+MAP_WIDTH = 32
+MAP_HEIGHT = 32
+FPS = 3
 NUM_DRONES = 3
 ENTRY_POINTS = 2
-FOV = 3
+FOV = 0
+
 
 def run_simulation():
     pygame.init()
@@ -27,20 +28,10 @@ def run_simulation():
     pygame.display.set_caption("Multi-Agent SLAM Simulation")
 
     # env = GridMapEnv(width=MAP_WIDTH, height=MAP_HEIGHT, randomize=True, num_entry_points=ENTRY_POINTS)
-    env = GridMapEnv(map_path="data/maps/house_map.txt")
-    # env = GridMapEnv(map_path="data/maps/structured_house_map.txt")
+    # env = GridMapEnv(map_path="data/maps/house_map.txt")
+    env = GridMapEnv(map_path="data/maps/structured_house_map.txt")
 
-    drones = []
-    for i in range(NUM_DRONES):
-        # Cycle through entry points
-        y, x = env.entry_points[i % len(env.entry_points)]
-        entry_time = i * 2
-        d = Drone(drone_id=i, start_pos=(x, y), fov_radius=FOV, entry_time=entry_time)
-
-        d.initialize_map(env.grid.shape)
-        drones.append(d)
-
-    master = MasterController(drones, env)
+    master = MasterController(env.drones, env)
 
     clock = pygame.time.Clock()
     start_time = time.time()
@@ -76,7 +67,7 @@ def run_simulation():
 
         # Observed map (right)
         observed_map = np.full(env.grid.shape, -1, dtype=np.int8)
-        for drone in drones:
+        for drone in env.drones:
             if drone.local_map is not None:
                 observed_map[drone.local_map != -1] = drone.local_map[drone.local_map != -1]
 
@@ -96,7 +87,7 @@ def run_simulation():
                 pygame.draw.rect(screen, color, (MAP_WIDTH * TILE_SIZE + 50 + x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1))
 
         # Draw drones
-        for drone in drones:
+        for drone in env.drones:
             if drone.active:
                 dx, dy = drone.get_position()
                 pygame.draw.circle(screen, (255, 255, 0), (dx * TILE_SIZE + TILE_SIZE // 2, dy * TILE_SIZE + TILE_SIZE // 2), 5)

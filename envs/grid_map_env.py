@@ -1,5 +1,6 @@
 import numpy as np
 import random
+from agents.drone import Drone
 
 # Map tile definitions
 FREE_SPACE = 0
@@ -22,7 +23,7 @@ TILE_NAME = {
 
 
 class GridMapEnv:
-    def __init__(self, width=30, height=30, randomize=False, map_path=None, num_entry_points=2):
+    def __init__(self, width=32, height=32, randomize=False, map_path=None, num_entry_points=2, num_drones=3, fov=0):
         if map_path:
             self.grid = self.load_map(map_path)
         elif randomize:
@@ -32,6 +33,15 @@ class GridMapEnv:
 
         self.height, self.width = self.grid.shape
         self.entry_points = self.find_entry_points()
+
+        self.drones = []
+        for i in range(num_drones):
+            y, x = self.entry_points[i % len(self.entry_points)]
+            entry_time = i * 2
+            drone = Drone(drone_id=i, start_pos=(x, y), fov_radius=fov, entry_time=entry_time)
+            drone.initialize_map(self.grid.shape)
+            self.drones.append(drone)
+
 
     @staticmethod
     def load_map(path):
@@ -115,8 +125,13 @@ class GridMapEnv:
 
     def is_collision(self, x, y):
         if not (0 <= x < self.width and 0 <= y < self.height):
-            return True  # Outside bounds
-        return self.grid[y, x] in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}
+            return True
+        if self.grid[y, x] in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}:
+            return True
+        for drone in self.drones:
+            if drone.get_position() == (x, y) and drone.active:
+                return True
+        return False
 
     def get_tile(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:

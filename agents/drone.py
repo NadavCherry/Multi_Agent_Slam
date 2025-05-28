@@ -28,6 +28,7 @@ class Drone:
         if current_time >= self.entry_time:
             self.active = True
 
+
     def move(self, direction, env):
         if not self.active:
             return

@@ -2,7 +2,6 @@ import pygame
 import time
 import numpy as np
 from envs.grid_map_env import GridMapEnv
-from agents.drone import Drone
 from master.master_controller import MasterController
 from envs.grid_map_env import (
     WALL, FREE_SPACE, ENTRY_POINT, DOOR_CLOSED, DOOR_OPEN, WINDOW, OUT_OF_BOUNDS
@@ -12,10 +11,10 @@ from envs.grid_map_env import (
 TILE_SIZE = 20
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
-FPS = 120
-NUM_DRONES = 30
+FPS = 30
+NUM_DRONES = 6
 ENTRY_POINTS = 1
-FOV = 0
+FOV = 1
 
 
 def compute_reachable_mask(env, fov):

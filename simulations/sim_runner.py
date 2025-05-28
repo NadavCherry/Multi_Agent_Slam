@@ -11,10 +11,28 @@ from envs.grid_map_env import (
 TILE_SIZE = 20
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
-FPS = 30
-NUM_DRONES = 6
+FPS = 3
+NUM_DRONES = 1
 ENTRY_POINTS = 1
 FOV = 1
+
+def raycast_fov(y, x, env, fov):
+    """
+    Cast rays from (y, x) in all directions and mark visible tiles up to distance `fov`.
+    Stops rays when hitting walls.
+    """
+    visible = set()
+    directions = [(dx, dy) for dx in range(-1, 2) for dy in range(-1, 2) if dx != 0 or dy != 0]
+
+    for dx, dy in directions:
+        for dist in range(1, fov + 1):
+            nx, ny = x + dx * dist, y + dy * dist
+            if not (0 <= ny < env.height and 0 <= nx < env.width):
+                break
+            visible.add((ny, nx))
+            if env.grid[ny, nx] in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}:
+                break  # Stop ray on obstacle
+    return visible
 
 
 def compute_reachable_mask(env, fov):
@@ -49,12 +67,9 @@ def compute_reachable_mask(env, fov):
     for y in range(env.height):
         for x in range(env.width):
             if reachable[y, x]:
-                for dy in range(-fov, fov + 1):
-                    for dx in range(-fov, fov + 1):
-                        if dx**2 + dy**2 <= fov**2:
-                            ny, nx = y + dy, x + dx
-                            if 0 <= ny < env.height and 0 <= nx < env.width:
-                                expanded[ny, nx] = True
+                for ny, nx in raycast_fov(y, x, env, fov):
+                    expanded[ny, nx] = True
+
     return expanded
 
 

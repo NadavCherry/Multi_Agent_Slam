@@ -1,6 +1,14 @@
 import numpy as np
 import random
 
+FREE_SPACE = 0
+WALL = 1
+ENTRY_POINT = 2
+DOOR_CLOSED = 3
+DOOR_OPEN = 4
+WINDOW = 5
+OUT_OF_BOUNDS = 6
+
 DIRECTIONS = {
     'UP': (0, -1),
     'DOWN': (0, 1),
@@ -50,6 +58,25 @@ class Drone:
         if not self.active:
             return []
 
+        def bresenham(x0, y0, x1, y1):
+            """Yield integer coordinates on the line from (x0, y0) to (x1, y1)."""
+            dx = abs(x1 - x0)
+            dy = -abs(y1 - y0)
+            sx = 1 if x0 < x1 else -1
+            sy = 1 if y0 < y1 else -1
+            err = dx + dy
+            while True:
+                yield x0, y0
+                if x0 == x1 and y0 == y1:
+                    break
+                e2 = 2 * err
+                if e2 >= dy:
+                    err += dy
+                    x0 += sx
+                if e2 <= dx:
+                    err += dx
+                    y0 += sy
+
         cx, cy = self.pos
         new_discoveries = []
 
@@ -57,13 +84,21 @@ class Drone:
             for dx in range(-self.fov_radius, self.fov_radius + 1):
                 x = cx + dx
                 y = cy + dy
+                if not (0 <= x < env.width and 0 <= y < env.height):
+                    continue
+                if dx ** 2 + dy ** 2 > self.fov_radius ** 2:
+                    continue
 
-                if 0 <= x < env.width and 0 <= y < env.height:
-                    if dx ** 2 + dy ** 2 <= self.fov_radius ** 2:
-                        tile_val = env.get_tile(x, y)
-                        if self.local_map[y, x] != tile_val:
-                            self.local_map[y, x] = tile_val
-                            new_discoveries.append((x, y, tile_val))
+                blocked = False
+                for lx, ly in bresenham(cx, cy, x, y):
+                    if not (0 <= lx < env.width and 0 <= ly < env.height):
+                        break
+                    val = env.get_tile(lx, ly)
+                    if self.local_map[ly, lx] != val:
+                        self.local_map[ly, lx] = val
+                        new_discoveries.append((lx, ly, val))
+                    if val in {WALL, DOOR_CLOSED}:
+                        break  # stop vision beyond this point
 
         return new_discoveries
 

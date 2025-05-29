@@ -7,64 +7,52 @@ DIRECTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'STAY']
 
 
 class MasterController:
-    def __init__(self, drones, env, discoverable_mask, mode="frontier"):
-        self.drones = drones
+    def __init__(self, env, discoverable_mask, mode="frontier"):
         self.env = env
         self.global_map = np.full((env.height, env.width), -1, dtype=np.int8)  # unknown
         self.frontiers = set()
         self.discoverable_mask = discoverable_mask
         self.mode = mode  # "random" or "frontier"
-        self.goals = {d.id: None for d in drones}
-        self.paths = {d.id: [] for d in drones}
-        self.first_move_done = {d.id: False for d in drones}
+        self.goals = {d.id: None for d in env.drones}
+        self.paths = {d.id: [] for d in env.drones}
 
     def step(self, current_time):
-        """
-        Main controller step. Activates drones and gives them random actions.
-        """
-        assigned_goals = {goal for goal in self.goals.values() if goal}
-
-        for drone in self.drones:
+        for drone in self.env.drones:
             if not drone.active:
                 drone.activate(current_time)
 
+        self._update_frontiers()
 
-            if drone.active:
-                if self.mode == "random":
-                    new_info = self.random_walk(drone)
+        assigned_goals = set()
+        for drone in self.env.drones:
+            if self.mode == "random":
+                new_info = self.random_walk(drone)
 
-                elif self.mode == "frontier":
-                    if not self.first_move_done[drone.id]:
-                        new_info = self.random_walk(drone)
-                        self.first_move_done[drone.id] = True
-                    else:
-                        new_info = self.frontier_plan(drone, assigned_goals)
+            elif self.mode == "frontier":
+                new_info = self.frontier_plan(drone, assigned_goals, current_time)
 
-                else:
-                    raise ValueError("Unknown mode")
+            else:
+                raise ValueError("Unknown mode")
 
-                if new_info is not None:
-                    for x, y, val in new_info:
-                        if self.global_map[y, x] == -1:
-                            self.global_map[y, x] = val
+            if new_info is not None:
+                for x, y, val in new_info:
+                    if self.global_map[y, x] == -1:
+                        self.global_map[y, x] = val
 
-                            # Remove all newly discovered cells from frontiers
-                            for x, y, _ in new_info:
-                                self.frontiers.discard((x, y))
-
-                            # Update new frontiers based on all new observations
-                            self._update_frontiers(new_info)
-
-    def _update_frontiers(self, new_info):
-        for x, y, val in new_info:
-            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                nx, ny = x + dx, y + dy
-
-                if not (0 <= nx < self.env.width and 0 <= ny < self.env.height):
+    def _update_frontiers(self):
+        self.frontiers = set()
+        for y in range(self.env.height):
+            for x in range(self.env.width):
+                if self.global_map[y, x] == -1:
                     continue
-
-                if self.global_map[ny, nx] == -1 and self.discoverable_mask[ny, nx]:
-                    self.frontiers.add((nx, ny))
+                if self.env.grid[y, x] in {1, 3, 6}:  # WALL, DOOR_CLOSED, OUT_OF_BOUNDS
+                    continue
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < self.env.width and 0 <= ny < self.env.height:
+                        if self.global_map[ny, nx] == -1 and self.discoverable_mask[ny, nx]:
+                            self.frontiers.add((x, y))
+                            break
 
     def random_walk(self, drone):
         """
@@ -91,54 +79,49 @@ class MasterController:
         # All directions blocked — stay
         return drone.move('STAY', self.env)
 
-    def frontier_plan(self, drone, assigned_goals):
+    def frontier_plan(self, drone, assigned_goals, current_time):
         id = drone.id
         current_pos = drone.pos
 
-        # Reassign if no goal or goal is discovered
-        current_goal = self.goals[id]
-        if (not current_goal or
-                self.global_map[current_goal[1], current_goal[0]] != -1 or
+        if (not self.goals[id] or
+                self.global_map[self.goals[id][1], self.goals[id][0]] != -1 or
                 not self.paths[id]):
 
-            candidates = [f for f in self.frontiers if self.discoverable_mask[f[1], f[0]]]
-            if not candidates:
-                print("no candidates")
-                return drone.move('STAY', self.env)
+            available_frontiers = [f for f in self.frontiers if f not in assigned_goals]
+            best_goal, best_path = None, []
+            best_score = float('inf')
 
-            def score(f):
-                dist = abs(f[0] - current_pos[0]) + abs(f[1] - current_pos[1])
-                spacing = sum(
-                    np.linalg.norm(np.array(f) - np.array(other.pos)) for other in self.drones if other.id != id
-                )
-                return dist - 0.5 * spacing
-
-            for f in sorted(candidates, key=score):
-                if f in assigned_goals:
-                    continue
+            for f in available_frontiers:
                 path = a_star(current_pos, f, self.global_map)
-                if path:
-                    self.goals[id] = f
-                    self.paths[id] = path
-                    assigned_goals.add(f)
-                    # print(f"Drone {id} assigned goal {f} with path {path}")
-                    break
+                if not path:
+                    continue
+
+                dist = abs(f[0] - current_pos[0]) + abs(f[1] - current_pos[1])
+                spacing = sum(np.linalg.norm(np.array(f) - np.array(other.pos))
+                              for other in self.env.drones if other.id != id)
+                score = dist - 0.5 * spacing
+
+                if score < best_score:
+                    best_goal = f
+                    best_path = path
+                    best_score = score
+
+            if best_goal:
+                self.goals[id] = best_goal
+                self.paths[id] = best_path
+                assigned_goals.add(best_goal)
             else:
-                print(f"[Warning] Drone {id} has no reachable frontier.")
-                return drone.move('STAY', self.env)
+                print(f"[Warning] No goal available for Drone {id} at time {current_time}. Using random walk.")
+                return self.random_walk(drone)
 
-        # Move along path
-        if not self.paths[id]:
-            print("no paths")
-            return drone.move('STAY', self.env)
-
-        next_pos = self.paths[id].pop(0)
-        dx, dy = next_pos[0] - current_pos[0], next_pos[1] - current_pos[1]
-        direction_map = {(0, -1): 'UP', (0, 1): 'DOWN', (-1, 0): 'LEFT', (1, 0): 'RIGHT', (0, 0): 'STAY'}
-        if (dx == 0 and dy == 0) or dx>1 or dy>1 or dx<-1 or dy<-1:
-            print(f"Drone {id}, paths: {self.paths[id]}, goal: {self.goals[id]}, current pos: {current_pos}")
-        return drone.move(direction_map.get((dx, dy), 'STAY'), self.env)
-
+        if self.paths[id]:
+            next_pos = self.paths[id].pop(0)
+            dx, dy = next_pos[0] - current_pos[0], next_pos[1] - current_pos[1]
+            direction_map = {(0, -1): 'UP', (0, 1): 'DOWN', (-1, 0): 'LEFT', (1, 0): 'RIGHT', (0, 0): 'STAY'}
+            return drone.move(direction_map.get((dx, dy), 'STAY'), self.env)
+        else:
+            print(f"[Warning] Drone {id} path exhausted.")
+            return self.random_walk(drone)
 
 def a_star(start, goal, grid):
     height, width = grid.shape

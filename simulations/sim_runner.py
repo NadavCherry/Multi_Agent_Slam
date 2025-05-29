@@ -11,66 +11,52 @@ from envs.grid_map_env import (
 TILE_SIZE = 20
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
-FPS = 3
-NUM_DRONES = 1
+FPS = 120
+NUM_DRONES = 3
 ENTRY_POINTS = 1
 FOV = 1
 
-def raycast_fov(y, x, env, fov):
-    """
-    Cast rays from (y, x) in all directions and mark visible tiles up to distance `fov`.
-    Stops rays when hitting walls.
-    """
-    visible = set()
-    directions = [(dx, dy) for dx in range(-1, 2) for dy in range(-1, 2) if dx != 0 or dy != 0]
 
-    for dx, dy in directions:
-        for dist in range(1, fov + 1):
-            nx, ny = x + dx * dist, y + dy * dist
-            if not (0 <= ny < env.height and 0 <= nx < env.width):
-                break
-            visible.add((ny, nx))
-            if env.grid[ny, nx] in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}:
-                break  # Stop ray on obstacle
-    return visible
-
-
-def compute_reachable_mask(env, fov):
+def compute_reachable_mask(env):
     """
-    Perform BFS from entry points to mark all cells that are discoverable
-    considering FOV. Returns a boolean mask.
+    Discover all physically reachable tiles + directly adjacent walls/doors/out-of-bounds.
     """
-    reachable = np.zeros_like(env.grid, dtype=bool)
-    visited = np.zeros_like(env.grid, dtype=bool)
+    from envs.grid_map_env import WALL, DOOR_CLOSED, OUT_OF_BOUNDS
+
+    height, width = env.grid.shape
+    walkable_reachable = np.zeros((height, width), dtype=bool)
+    visited = np.zeros((height, width), dtype=bool)
     queue = list(env.entry_points)
 
+    # Phase 1: BFS over walkable tiles only
     while queue:
         y, x = queue.pop(0)
         if visited[y, x]:
             continue
         visited[y, x] = True
-        reachable[y, x] = True
+        walkable_reachable[y, x] = True
 
         for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             ny, nx = y + dy, x + dx
-            if not (0 <= ny < env.height and 0 <= nx < env.width):
-                continue
-            if visited[ny, nx]:
-                continue
-            tile = env.grid[ny, nx]
-            if tile in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}:
-                continue
-            queue.append((ny, nx))
+            if 0 <= ny < height and 0 <= nx < width:
+                if not visited[ny, nx] and env.grid[ny, nx] not in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}:
+                    queue.append((ny, nx))
 
-    # Expand reachable mask by FOV
-    expanded = np.zeros_like(env.grid, dtype=bool)
-    for y in range(env.height):
-        for x in range(env.width):
-            if reachable[y, x]:
-                for ny, nx in raycast_fov(y, x, env, fov):
-                    expanded[ny, nx] = True
+    # Phase 2: Build final reachable mask:
+    # - All walkable_reachable cells
+    # - Plus walls/doors that are adjacent to walkable_reachable cells
+    final_reachable = walkable_reachable.copy()
+    for y in range(height):
+        for x in range(width):
+            if env.grid[y, x] in {WALL, DOOR_CLOSED, OUT_OF_BOUNDS}:
+                for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < height and 0 <= nx < width:
+                        if walkable_reachable[ny, nx]:
+                            final_reachable[y, x] = True
+                            break
 
-    return expanded
+    return final_reachable
 
 
 def run_simulation():
@@ -89,8 +75,8 @@ def run_simulation():
     #                  num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
     # Only count reachable areas
 
-    reachable_mask = compute_reachable_mask(env, FOV)
-    master = MasterController(env.drones, env, reachable_mask)
+    reachable_mask = compute_reachable_mask(env)
+    master = MasterController(env, reachable_mask)
 
     clock = pygame.time.Clock()
     start_time = time.time()
@@ -182,6 +168,10 @@ def run_simulation():
             msg = f"Objective Achieved in {completion_time:.2f} seconds"
             rendered_msg = font.render(msg, True, (0, 255, 255))
             screen.blit(rendered_msg, ((screen_width - rendered_msg.get_width()) // 2, bar_top - 50))
+
+            pygame.display.flip()
+            time.sleep(5)  # Show message for 5 seconds
+            running = False
 
         # Legend
         legend_items = [

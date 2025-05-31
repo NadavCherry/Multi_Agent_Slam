@@ -11,7 +11,7 @@ from envs.grid_map_env import (
 TILE_SIZE = 20
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
-FPS = 120
+FPS = 30
 NUM_DRONES = 3
 ENTRY_POINTS = 1
 FOV = 1
@@ -69,20 +69,17 @@ def run_simulation():
     pygame.display.set_caption("Multi-Agent SLAM Simulation")
 
     # env = GridMapEnv(width=MAP_WIDTH, height=MAP_HEIGHT, randomize=True, num_entry_points=ENTRY_POINTS)
-    env = GridMapEnv(map_path="data/maps/house_map.txt", width=32, height=32, randomize=False,
-                         num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
-    # env = GridMapEnv(map_path="data/maps/structured_house_map.txt", width=32, height=32, randomize=False,
-    #                  num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
-    # Only count reachable areas
+    # env = GridMapEnv(map_path="data/maps/house_map.txt", width=32, height=32, randomize=False,
+    #                      num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
+    env = GridMapEnv(map_path="data/maps/structured_house_map.txt", width=32, height=32, randomize=False,
+                     num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
 
     reachable_mask = compute_reachable_mask(env)
     master = MasterController(env, reachable_mask)
-
     clock = pygame.time.Clock()
     start_time = time.time()
     tick = 0
     running = True
-
     completed = False
     completion_time = None
 
@@ -142,9 +139,6 @@ def run_simulation():
                 screen.blit(drone_id_text, (MAP_WIDTH * TILE_SIZE + 50 + dx * TILE_SIZE + 5, dy * TILE_SIZE))
 
         # Progress bar
-        # Count all real map cells except those that are -1 in the ground truth (if any)
-
-
         known_cells = np.count_nonzero((observed_map != -1) & reachable_mask)
         total_cells = np.count_nonzero(reachable_mask)
         progress_ratio = min(known_cells / total_cells, 1.0)

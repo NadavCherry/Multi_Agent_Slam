@@ -15,7 +15,7 @@ class MasterController:
         self.goals = {d.id: None for d in env.drones}
         self.paths = {d.id: [] for d in env.drones}
         self.wait_counters = {d.id: 0 for d in env.drones}
-        self.max_wait = 3  # maximum steps to wait before replan
+        self.max_wait = 3  # maximum steps to wait before replay
 
     def step(self, current_time):
         for drone in self.env.drones:
@@ -84,13 +84,13 @@ class MasterController:
 
         # Check if goal is invalid, reached, or path exhausted
         goal = self.goals[id]
-        if (not goal or self.global_map[goal[1], goal[0]] != -1 or not self.paths[id]):
+        if not goal or self.global_map[goal[1], goal[0]] != -1 or not self.paths[id]:
             available_frontiers = [f for f in self.frontiers if f not in assigned_goals]
             if not available_frontiers:
                 print(f"[Warning] No available_frontiers for Drone {id}. Random walk. at time {current_time}")
                 return self.random_walk(drone)
 
-            # Step 1: find closest frontiers
+            # Step 1: find the closest frontiers
             min_dist = float('inf')
             closest_frontiers = []
             for f in available_frontiers:
@@ -133,7 +133,7 @@ class MasterController:
             if blocked:
                 self.wait_counters[id] += 1
                 if self.wait_counters[id] >= self.max_wait:
-                    print(f"[Info] Drone {id} waited too long. Replanning. at time {current_time}")
+                    print(f"[Info] Drone {id} waited too long. Replanting. at time {current_time}")
                     self.goals[id] = None
                     self.paths[id] = []
                     self.wait_counters[id] = 0

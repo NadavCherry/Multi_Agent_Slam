@@ -80,16 +80,15 @@ class Drone:
         cx, cy = self.pos
         new_discoveries = []
 
-        for dy in range(-self.fov_radius, self.fov_radius + 1):
-            for dx in range(-self.fov_radius, self.fov_radius + 1):
-                x = cx + dx
-                y = cy + dy
+        for offset_y in range(-self.fov_radius, self.fov_radius + 1):
+            for offset_x in range(-self.fov_radius, self.fov_radius + 1):
+                x = cx + offset_x
+                y = cy + offset_y
                 if not (0 <= x < env.width and 0 <= y < env.height):
                     continue
-                if dx ** 2 + dy ** 2 > self.fov_radius ** 2:
+                if offset_x ** 2 + offset_y ** 2 > self.fov_radius ** 2:
                     continue
 
-                blocked = False
                 for lx, ly in bresenham(cx, cy, x, y):
                     if not (0 <= lx < env.width and 0 <= ly < env.height):
                         break
@@ -98,7 +97,7 @@ class Drone:
                         self.local_map[ly, lx] = val
                         new_discoveries.append((lx, ly, val))
                     if val in {WALL, DOOR_CLOSED}:
-                        break  # stop vision beyond this point
+                        break
 
         return new_discoveries
 

@@ -63,16 +63,21 @@ def run_simulation():
     pygame.init()
     font = pygame.font.SysFont("Arial", 16)
 
+    # env = GridMapEnv(width=MAP_WIDTH, height=MAP_HEIGHT, randomize=True, num_entry_points=ENTRY_POINTS)
+    # env = GridMapEnv(map_path="data/maps/house_map.txt", width=32, height=32, randomize=False,
+    #                      num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
+    env = GridMapEnv(map_path="data/maps/house_map_9.txt", width=32, height=32, randomize=False,
+                     num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
+
+    MAP_WIDTH = env.grid.shape[1]
+    MAP_HEIGHT = env.grid.shape[0]
+
     screen_width = TILE_SIZE * MAP_WIDTH * 2 + 50
     screen_height = TILE_SIZE * MAP_HEIGHT + 160
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Multi-Agent SLAM Simulation")
 
-    # env = GridMapEnv(width=MAP_WIDTH, height=MAP_HEIGHT, randomize=True, num_entry_points=ENTRY_POINTS)
-    # env = GridMapEnv(map_path="data/maps/house_map.txt", width=32, height=32, randomize=False,
-    #                      num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
-    env = GridMapEnv(map_path="data/maps/structured_house_map.txt", width=32, height=32, randomize=False,
-                     num_entry_points=ENTRY_POINTS, num_drones=NUM_DRONES, fov=FOV)
+
 
     reachable_mask = compute_reachable_mask(env)
     master = MasterController(env, reachable_mask)

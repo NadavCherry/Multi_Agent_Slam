@@ -33,6 +33,7 @@ class GridMapEnv:
 
         self.height, self.width = self.grid.shape
         self.entry_points = self.find_entry_points()
+        print(self.height, self.width, self.entry_points)
 
         self.drones = []
         for i in range(num_drones):
@@ -139,9 +140,27 @@ class GridMapEnv:
         return OUT_OF_BOUNDS
 
     def find_entry_points(self):
-        return [(y, x) for y in range(self.height)
-                for x in range(self.width)
-                if self.grid[y, x] == ENTRY_POINT]
+        entry_points = [(y, x) for y in range(self.height)
+                        for x in range(self.width)
+                        if self.grid[y, x] == ENTRY_POINT]
+
+        if not entry_points:
+            # Find all cells with values 0, 1, or 2
+            candidates = [(y, x) for y in range(self.height)
+                          for x in range(self.width)
+                          if self.grid[y, x] in [0, 1, 2]]
+
+            if candidates:
+                y, x = random.choice(candidates)
+                original = self.grid[y, x]
+                # Invert value cyclically: 0 → 2, 1 → 0, 2 → 1
+                inverted = {0: 2, 1: 0, 2: 1}[original]
+                self.grid[y, x] = ENTRY_POINT
+                print(
+                    f"No entry points found. Converted cell ({y}, {x}) from {original} to ENTRY_POINT (was inverted to {inverted}).")
+                entry_points = [(y, x)]
+
+        return entry_points
 
     @staticmethod
     def print_legend():

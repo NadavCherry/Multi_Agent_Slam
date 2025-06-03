@@ -87,7 +87,7 @@ class MasterController:
         if not goal or self.global_map[goal[1], goal[0]] != -1 or not self.paths[id]:
             available_frontiers = [f for f in self.frontiers if f not in assigned_goals]
             if not available_frontiers:
-                print(f"[Warning] No available_frontiers for Drone {id}. Random walk. at time {current_time}")
+                # print(f"[Warning] No available_frontiers for Drone {id}. Random walk. at time {current_time}")
                 return self.random_walk(drone)
 
             # Step 1: find the closest frontiers
@@ -120,7 +120,7 @@ class MasterController:
                 self.paths[id] = best_path
                 assigned_goals.add(best_goal)
             else:
-                print(f"[Warning] No valid goal for Drone {id}. Random walk. at time {current_time}")
+                # print(f"[Warning] No valid goal for Drone {id}. Random walk. at time {current_time}")
                 return self.random_walk(drone)
 
         # Move along path
@@ -133,13 +133,13 @@ class MasterController:
             if blocked:
                 self.wait_counters[id] += 1
                 if self.wait_counters[id] >= self.max_wait:
-                    print(f"[Info] Drone {id} waited too long. Replanting. at time {current_time}")
+                    # print(f"[Info] Drone {id} waited too long. Replanting. at time {current_time}")
                     self.goals[id] = None
                     self.paths[id] = []
                     self.wait_counters[id] = 0
                     return self.random_walk(drone)
                 else:
-                    print(f"[Info] Drone {id} blocked by another. Waiting ({self.wait_counters[id]}/{self.max_wait}).")
+                    # print(f"[Info] Drone {id} blocked by another. Waiting ({self.wait_counters[id]}/{self.max_wait}).")
                     return drone.move('STAY', self.env)
 
             # Safe to move

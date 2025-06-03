@@ -33,7 +33,7 @@ class GridMapEnv:
 
         self.height, self.width = self.grid.shape
         self.entry_points = self.find_entry_points()
-        print(self.height, self.width, self.entry_points)
+        # print(self.height, self.width, self.entry_points)
 
         self.drones = []
         for i in range(num_drones):
@@ -119,8 +119,8 @@ class GridMapEnv:
             grid[y, x] = ENTRY_POINT
             entries.add((y, x))
 
-        if len(entries) < num_entry_points:
-            print(f"Only {len(entries)} entry points created (requested {num_entry_points}).")
+        # if len(entries) < num_entry_points:
+            # print(f"Only {len(entries)} entry points created (requested {num_entry_points}).")
 
         return grid
 
@@ -148,7 +148,7 @@ class GridMapEnv:
             # Find all cells with values 0, 1, or 2
             candidates = [(y, x) for y in range(self.height)
                           for x in range(self.width)
-                          if self.grid[y, x] in [0, 1, 2]]
+                          if self.grid[y, x] in [FREE_SPACE, DOOR_OPEN, WINDOW]]
 
             if candidates:
                 y, x = random.choice(candidates)
@@ -156,8 +156,7 @@ class GridMapEnv:
                 # Invert value cyclically: 0 → 2, 1 → 0, 2 → 1
                 inverted = {0: 2, 1: 0, 2: 1}[original]
                 self.grid[y, x] = ENTRY_POINT
-                print(
-                    f"No entry points found. Converted cell ({y}, {x}) from {original} to ENTRY_POINT (was inverted to {inverted}).")
+                # print(f"No entry points found. Converted cell ({y}, {x}) from {original} to ENTRY_POINT (was inverted to {inverted}).")
                 entry_points = [(y, x)]
 
         return entry_points
